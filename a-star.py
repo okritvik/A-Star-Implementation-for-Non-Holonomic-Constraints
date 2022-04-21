@@ -37,13 +37,13 @@ def take_robot_inputs():
         else:
             break
     while True:
-        left_wheel_vel = input("Enter Left Wheel Velocity in RPM")
+        left_wheel_vel = input("Enter Left Wheel Velocity in RPM: ")
         if(int(left_wheel_vel)<0):
             print("Enter a valid input velocity")
         else:
             break
     while True:
-        right_wheel_vel = input("Enter Right Wheel Velocity in RPM")
+        right_wheel_vel = input("Enter Right Wheel Velocity in RPM: ")
         if(int(right_wheel_vel)<0):
             print("Enter a valid input velocity")
         else:
@@ -120,10 +120,10 @@ def take_map_inputs(canvas):
         
         # if(int(initial_angle)<0 or int(initial_angle)>359 or (int(initial_angle)%30 != 0)):
         if int(initial_angle) < 0:
-            initial_angle = initial_angle%360
+            initial_angle = int(initial_angle)%360
             initial_angle = 360 + int(initial_angle)
         else:
-            initial_angle = initial_angle%360
+            initial_angle = int(initial_angle)%360
 
         initial_state.append(int(initial_angle))
         break
@@ -241,7 +241,7 @@ def check_obstacle(next_width, next_height, canvas):
         flag: bool
                 True if the next node is NOT in the obstacle region, False otherwise
     """
-    if canvas[int(round(next_height))][int(round(next_width))][0]==255:
+    if int(round(next_height))>=canvas.shape[0] or int(round(next_width))>=canvas.shape[1] or canvas[int(round(next_height))][int(round(next_width))][0]==255:
         return False
     else:
         return True
@@ -272,9 +272,7 @@ def action(node, canvas, vel_l, vel_r, R, L):    # Local angles
     next_node = node.copy()
     
     # Angle in Cartesian System
-    if next_angle < 0:
-        next_angle += 360 
-    next_angle %= 360
+    # print("In action Generation")
 
     trajectory_list = []
     
@@ -284,6 +282,7 @@ def action(node, canvas, vel_l, vel_r, R, L):    # Local angles
     y_init = next_node[1]
     theta_init = next_node[2]
     trajectory_list.append((x_init,y_init,theta_init))
+    #print("Initial Vals: ",x_init,y_init)
     cost = 0
     for i in np.arange(0, 1, dt):
         x = x_init + (0.5*R*(vel_l+vel_r)*np.cos(np.deg2rad(next_node[2])))*dt
@@ -292,9 +291,11 @@ def action(node, canvas, vel_l, vel_r, R, L):    # Local angles
         cost += np.abs(x-x_init) + np.abs(y-y_init)
 
         #Check if in obstacle space
+        #print(x_init,y_init)
         if check_obstacle(x,y,canvas):
             trajectory_list.append((x,y,theta))
         else:
+            # print("Returning False")
             return False, trajectory_list, next_node, cost
 
         x_init, y_init, theta_init = x, y, theta
@@ -344,19 +345,19 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
         if(check_goal(node[4],final_state)):
             print("\nGoal Reached!")
             back_track_flag = True
-            back_track(initial_state,node[4],closed_list,canvas)
+            back_track(initial_state,node[4],closed_list,canvas,trajectory_dict)
             break
 
         present_c2c = node[1]
         present_c2g = node[2]
         total_cost = node[0]
-
-        flag, traj_list, n_state, cost = action(node, canvas, vel_l, vel_l, R, L)
+        print(node[4])
+        flag, traj_list, n_state, cost = action(node[4], canvas, vel_l, vel_l, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -371,12 +372,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, vel_l, vel_r, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, vel_l, vel_r, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -391,12 +392,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, vel_l, 0, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, vel_l, 0, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0], n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -411,12 +412,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, 0, vel_l, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, 0, vel_l, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -431,12 +432,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, vel_r, vel_r, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, vel_r, vel_r, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -451,12 +452,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, vel_r, vel_l, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, vel_r, vel_l, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -471,12 +472,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, vel_r, 0, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, vel_r, 0, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -491,12 +492,12 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node, canvas, 0, vel_r, R, L)
+        flag, traj_list, n_state, cost = action(node[4], canvas, 0, vel_r, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
                 for i in range(len(open_list)):
-                    if tuple(open_list[i][4][0], open_list[i][4][1]) == tuple(n_state[0],n_state[1]):
+                    if (open_list[i][4][0], open_list[i][4][1]) == (n_state[0],n_state[1]):
                         dup = True
                         n_cost = present_c2c+cost+cost_to_goal(n_state,final_state)
                         if(n_cost<open_list[i][0]):    # Updating the cost and parent info of the node
@@ -505,18 +506,19 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                             open_list[i][3] = node[4]
                             trajectory_dict[tuple(n_state)] = traj_list
                             hq.heapify(open_list)
-                        break
+                        break   
                 if(not dup):
                     hq.heappush(open_list,[present_c2c+cost+cost_to_goal(n_state,final_state),present_c2c+cost,cost_to_goal(n_state,final_state),node[4],n_state])
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
-
+        #print(len(closed_list))
+        print(len(open_list))
     if not back_track_flag:    
         print("\nNo Solution Found!")
         print("Total Number of Nodes Explored: ",len(closed_list))
 
 
-def back_track(initial_state, final_state, closed_list, canvas):
+def back_track(initial_state, final_state, closed_list, canvas, trajectory_dict):
     """
     Implements backtracking to the start node after reaching the goal node.
     This function is also used for visualization of explored nodes and computed path using OpenCV.
@@ -537,7 +539,7 @@ def back_track(initial_state, final_state, closed_list, canvas):
     """
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')    # Creating video writer to generate a video.
-    out = cv2.VideoWriter('A-Star-amalapak-okritvik_testCase01.avi',fourcc,500,(canvas.shape[1],canvas.shape[0]))
+    out = cv2.VideoWriter('A-Star-amalapak-okritvik_testCase.avi',fourcc,500,(canvas.shape[1],canvas.shape[0]))
     
     print("Total Number of Nodes Explored = ",len(closed_list)) 
     
@@ -550,7 +552,11 @@ def back_track(initial_state, final_state, closed_list, canvas):
         p_node = closed_list[tuple(key)]
         cv2.circle(canvas,(int(key[0]),int(key[1])),2,(0,0,255),-1)
         cv2.circle(canvas,(int(p_node[0]),int(p_node[1])),2,(0,0,255),-1)
-        canvas = cv2.arrowedLine(canvas, (int(p_node[0]),int(p_node[1])), (int(key[0]),int(key[1])), (0,255,0), 1, tipLength = 0.2)
+        # canvas = cv2.arrowedLine(canvas, (int(p_node[0]),int(p_node[1])), (int(key[0]),int(key[1])), (0,255,0), 1, tipLength = 0.2)
+        if(tuple(initial_state)!=tuple(key)):
+            traj = trajectory_dict[tuple(key)]
+            for i in range(0,len(traj)-1):
+                cv2.line(canvas,(int(round(traj[i][0])),int(round(traj[i][1]))), (int(round(traj[i+1][0])),int(round(traj[i+1][1]))), (0,255,0),1)            
         cv2.imshow("A* Exploration and Optimal Path Visualization",canvas)
         cv2.waitKey(1)
         out.write(canvas)
@@ -570,7 +576,10 @@ def back_track(initial_state, final_state, closed_list, canvas):
     # Visualizing the optimal path
     while(len(path_stack) > 0):
         path_node = path_stack.pop()
-        cv2.line(canvas,(int(start_node[0]),int(start_node[1])),(int(path_node[0]),int(path_node[1])),(255,0,196),5)
+        traj = trajectory_dict[tuple(path_node)]
+        for i in range(0,len(traj)-1):
+            cv2.line(canvas,(int(round(traj[i][0])),int(round(traj[i][1]))), (int(round(traj[i+1][0])),int(round(traj[i+1][1]))), (255,0,196),3)
+        # cv2.line(canvas,(int(start_node[0]),int(start_node[1])),(int(path_node[0]),int(path_node[1])),(255,0,196),5)
         print(path_node)
         start_node = path_node.copy()
         out.write(canvas)
@@ -580,7 +589,7 @@ def back_track(initial_state, final_state, closed_list, canvas):
 if __name__ == '__main__':
     
     canvas = np.ones((250,400,3), dtype="uint8")    # Creating a blank canvas/map
-    clearance, robot_radius = take_robot_inputs()
+    clearance, robot_radius, vel_l, vel_r = take_robot_inputs()
     canvas = draw_obstacles(canvas,offset = (clearance + robot_radius))
     initial_state, final_state = take_map_inputs(canvas) #Take the start and goal node from the user
     
@@ -597,8 +606,6 @@ if __name__ == '__main__':
     # Converting the angles with respect to the image coordinates
     if initial_state[2] != 0:
         initial_state[2] = 360 - initial_state[2]
-    if final_state[2] != 0:
-        final_state[2] = 360 - final_state[2]
 
     print("\nStart Node (image coords): ", initial_state)
     print("Goal Node (image coords): ", final_state)
@@ -607,8 +614,9 @@ if __name__ == '__main__':
 
     cv2.circle(canvas,(int(initial_state[0]),int(initial_state[1])),2,(0,0,255),-1)
     cv2.circle(canvas,(int(final_state[0]),int(final_state[1])),2,(0,0,255),-1)
-    
-    astar(initial_state,final_state,canvas)    # Compute the optimal path using A* Algorithm
+    R = 38
+    L = 3.54
+    astar(initial_state,final_state,canvas, vel_l, vel_r, R, L)    # Compute the optimal path using A* Algorithm
     
     end_time = time.time()    # Time taken for the algorithm to find the optimal path
     print("\nCode Execution Time (sec): ", end_time-start_time)    # Computes & prints the total execution time

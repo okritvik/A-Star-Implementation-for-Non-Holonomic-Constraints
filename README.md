@@ -38,7 +38,7 @@ Video Link: https://youtu.be/kElPb8yBWeM </br></br>
 Video Link: https://youtu.be/AiUbnV2LWNk </br></br>
   [co-ordinates with respect to bottom left corner origin of the window] 
 
-  Start-Node: (300, 30) 
+  	Start-Node: (300, 30) 
 
 	Goal-Node:  (150, 150)
     

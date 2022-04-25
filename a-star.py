@@ -1,12 +1,12 @@
-# Kumara_Ritvik.py
+# a-star.py
 """
 Authors: Kumara Ritvik Oruganti (okritvik@umd.edu), 2022
          Adarsh Malapaka (amalapak@umd.edu), 2022
-Brief: Computes and visualizes an optimal path between the start and goal posiitons in a 5-connected (-60,-30, 0, 30, 60) degrees
-       obstacle map for a point mobile robot with non-zero radius and clearance and a defined step size using A* Algorithm. 
+Brief: Computes and visualizes an optimal path between the start and goal posiitons in an 8-connected obstacle map 
+       for Turtlebot3 robot with non-zero radius and clearance using A* Algorithm. 
 Course: ENPM661 - Planning for Autonomous Robotics [Project-03, Phase 01]
         University of Maryland, College Park (MD)
-Date: 21st March, 2022
+Date: 24th April, 2022
 """
 # Importing the required libraries
 import time
@@ -51,9 +51,10 @@ def take_robot_inputs():
     
     return int(clearance), int(robot_radius), int(left_wheel_vel), int(right_wheel_vel)
 
+
 def take_map_inputs(canvas):
     """
-    Gets the initial node, final node coordinates, heading angles and step-size from the user.
+    Gets the initial node, final node coordinates and heading angle from the user.
                 
     Parameters:
         canvas: NumPy array
@@ -62,7 +63,7 @@ def take_map_inputs(canvas):
         initial_state: List
                 List to hold the initial node coordinates and heading angle
         final_state: List 
-                List to hold the final node coordinates and heading angle
+                List to hold the final node coordinates
     """
     initial_state = []
     final_state = []
@@ -128,7 +129,6 @@ def take_map_inputs(canvas):
         initial_state.append(int(initial_angle))
         break
             
-    
     return initial_state,final_state
 
 
@@ -140,7 +140,7 @@ def draw_obstacles(canvas, offset=10):
         canvas: NumPy array
                 Map matrix
         offset: int
-                Offset is robot radius + clearance 
+                Offset is robot radius + clearance (Default value: 10)
     Returns:
         canvas: NumPy array
                 Map matrix with drawn obstacles
@@ -175,24 +175,9 @@ def draw_obstacles(canvas, offset=10):
     return canvas
 
 
-def threshold(num):
-    """
-    Rounds the given number to the nearest 0.5 value.
-    For ex: 4.61 is rounded to 4.5 whereas 4.8 is rounded to 5.0.
-                
-    Parameters:
-        num: float
-                Number to be rounded
-    Returns:
-        num: float
-                Number rounded to nearest 0.5
-    """
-    return round(num*2)/2
-
-
 def check_goal(node, final):
     """
-    Checks if the given current node is within the goal node's threshold distance of 1.5.
+    Checks if the given current node is within the goal node's threshold distance of 5.
                 
     Parameters:
         node: List
@@ -203,7 +188,7 @@ def check_goal(node, final):
         flag: bool
                 True if the present node is the goal node, False otherwise
     """
-    if(np.sqrt(np.power(node[0]-final[0],2)+np.power(node[1]-final[1],2))<1.5):
+    if(np.sqrt(np.power(node[0]-final[0],2)+np.power(node[1]-final[1],2))<5):
         return True
     else:
         return False
@@ -241,39 +226,40 @@ def check_obstacle(next_width, next_height, canvas):
         flag: bool
                 True if the next node is NOT in the obstacle region, False otherwise
     """
-    if int(round(next_height))>=canvas.shape[0] or int(round(next_width))>=canvas.shape[1] or canvas[int(round(next_height))][int(round(next_width))][0]==255:
+    if int(round(next_height)) < 0 or int(round(next_width)) < 0 or int(round(next_height))>=canvas.shape[0] or int(round(next_width))>=canvas.shape[1] or canvas[int(round(next_height))][int(round(next_width))][0]==255:
         return False
     else:
         return True
 
 
-def action(node, canvas, vel_l, vel_r, R, L):    # Local angles
+def action(node, canvas, rpm1, rpm2, R, L):  
     """
-    Moves the robot at 0 degree angle (wrt robot's frame) by the step amount. 
+    Generates a child node of the given node based on the 2 RPM values of the robot. 
               
     Parameters:
         node: List
                 List of node's x, y and theta parameters
-        
         canvas: NumPy array
                 Map matrix with drawn obstacles 
-        visited: NumPy array
-                Visited matrix of size 500x800x12 to keep track of duplicate nodes  
-        step: int
-               Step size of the robot 
-    Returns:
-        Next Node flag: bool
+        rpm1: int
+               1st value of wheel RPM
+        rpm2: int
+               2nd value of wheel RPM 
+        R: int
+               Robot wheel radius
+        L: int
+               Robot wheel base distance 
+    Returns: True, trajectory_list, next_node, cost
+        flag: bool
                 True if the child node can be generated, False otherwise
+        trajectory_list: List
+                List containing path coordinates between child and parent nodes
         next_node: List
                 Child node generated after performing the action
-        Duplicate Node flag: bool
-                True if generated next node is already visited, False otherwise
+        cost: float
+                Cost of computed action path
     """
     next_node = node.copy()
-    
-    # Angle in Cartesian System
-    # print("In action Generation")
-
     trajectory_list = []
     
     dt = 0.1
@@ -282,20 +268,22 @@ def action(node, canvas, vel_l, vel_r, R, L):    # Local angles
     y_init = next_node[1]
     theta_init = next_node[2]
     trajectory_list.append((x_init,y_init,theta_init))
-    #print("Initial Vals: ",x_init,y_init)
+
     cost = 0
-    for i in np.arange(0, 1, dt):
-        x = x_init + (0.5*R*(vel_l+vel_r)*np.cos(np.deg2rad(next_node[2])))*dt
-        y = y_init + (0.5*R*(vel_l+vel_r)*np.sin(np.deg2rad(next_node[2])))*dt
-        theta = theta_init + ((R/L)*(vel_r - vel_l))*dt
+    for i in np.arange(0, 0.5, dt):
+        x = x_init + (0.5*R*(rpm1+rpm2)*np.cos(np.deg2rad(next_node[2])))*dt
+        y = y_init + (0.5*R*(rpm1+rpm2)*np.sin(np.deg2rad(next_node[2])))*dt
+        theta = theta_init + ((R/L)*(rpm2 - rpm1))*dt
         cost += np.abs(x-x_init) + np.abs(y-y_init)
 
-        #Check if in obstacle space
-        #print(x_init,y_init)
+        # Coorecting out of range theta angles
+        # theta %= 360
+        # if theta < 0:
+        #     theta += 360
+
         if check_obstacle(x,y,canvas):
             trajectory_list.append((x,y,theta))
         else:
-            # print("Returning False")
             return False, trajectory_list, next_node, cost
 
         x_init, y_init, theta_init = x, y, theta
@@ -303,10 +291,11 @@ def action(node, canvas, vel_l, vel_r, R, L):    # Local angles
     next_node[0] = int(round(x_init))
     next_node[1] = int(round(y_init))
     next_node[2] = theta
+
     return True, trajectory_list, next_node, cost
 
 
-def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
+def astar(initial_state, final_state, canvas, rpm1, rpm2, R, L):
     """
     Implements the A* algorithm to find the path between the user-given start node and goal node.  
     It is robust enough to raise a 'no solution' prompt for goal/start states in the obstacle space.
@@ -316,21 +305,25 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
     Parameters:
         initial_state: List
                 List of start node's x, y and theta parameters
-        
         final_state: List
                 List of goal node's x, y and theta parameters 
         canvas: NumPy array
                 Map matrix with drawn obstacles  
-        step: int
-               Step size of the robot 
+        rpm1: int
+               1st value of wheel RPM
+        rpm2: int
+               2nd value of wheel RPM 
+        R: int
+               Robot wheel radius
+        L: int
+               Robot wheel base distance
     Returns:
             None
     """
     open_list = []    # Format: {(TotalCost): CostToCome, CostToGo, PresentNode, ParentNode}
     closed_list = {}    # Format: {(PresentNode): ParentNode}
     back_track_flag = False
-    trajectory_dict = {}
-    # visited_nodes = np.zeros((500,800,12))
+    trajectory_dict = {}    # Dictionary to hold intermediate trajectory path for a node pair
     
     hq.heapify(open_list)
     present_c2c = 0
@@ -352,7 +345,9 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
         present_c2g = node[2]
         total_cost = node[0]
         print(node[4])
-        flag, traj_list, n_state, cost = action(node[4], canvas, vel_l, vel_l, R, L)
+
+        # Action Set: [RPM1, RPM1] 
+        flag, traj_list, n_state, cost = action(node[4], canvas, rpm1, rpm1, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -372,7 +367,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, vel_l, vel_r, R, L)
+        # Action Set: [RPM1, RPM2]
+        flag, traj_list, n_state, cost = action(node[4], canvas, rpm1, rpm2, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -392,7 +388,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, vel_l, 0, R, L)
+        # Action Set: [RPM1, 0]
+        flag, traj_list, n_state, cost = action(node[4], canvas, rpm1, 0, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -412,7 +409,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, 0, vel_l, R, L)
+        # Action Set: [0, RPM1]
+        flag, traj_list, n_state, cost = action(node[4], canvas, 0, rpm1, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -432,7 +430,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, vel_r, vel_r, R, L)
+        # Action Set: [RPM2, RPM2]
+        flag, traj_list, n_state, cost = action(node[4], canvas, rpm2, rpm2, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -452,7 +451,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, vel_r, vel_l, R, L)
+        # Action Set: [RPM2, RPM1]
+        flag, traj_list, n_state, cost = action(node[4], canvas, rpm2, rpm1, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -472,7 +472,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, vel_r, 0, R, L)
+        # Action Set: [RPM2, 0]
+        flag, traj_list, n_state, cost = action(node[4], canvas, rpm2, 0, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -492,7 +493,8 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
 
-        flag, traj_list, n_state, cost = action(node[4], canvas, 0, vel_r, R, L)
+        # Action Set: [0, RPM2]
+        flag, traj_list, n_state, cost = action(node[4], canvas, 0, rpm2, R, L)
         if(flag):
             if tuple(n_state) not in closed_list:
                 dup = False
@@ -511,8 +513,7 @@ def astar(initial_state, final_state, canvas,vel_l, vel_r, R, L):
                     hq.heappush(open_list,[present_c2c+cost+cost_to_goal(n_state,final_state),present_c2c+cost,cost_to_goal(n_state,final_state),node[4],n_state])
                     hq.heapify(open_list)
                     trajectory_dict[tuple(n_state)] = traj_list
-        #print(len(closed_list))
-        print(len(open_list))
+ 
     if not back_track_flag:    
         print("\nNo Solution Found!")
         print("Total Number of Nodes Explored: ",len(closed_list))
@@ -527,19 +528,20 @@ def back_track(initial_state, final_state, closed_list, canvas, trajectory_dict)
     Parameters:
         initial_state: List
                 List of start node's x, y and theta parameters
-        
         final_state: List
                 List of goal node's x, y and theta parameters 
         closed_list: Dictionary
                 Dictionary containing explored nodes and corresponding parents  
         canvas: NumPy array
                 Map matrix with drawn obstacles 
+        trajectory_dict: Dictionary
+                Dictionary containing trajectory coordinates for every node pair
     Returns:
             None
     """
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')    # Creating video writer to generate a video.
-    out = cv2.VideoWriter('A-Star-amalapak-okritvik_testCase.avi',fourcc,500,(canvas.shape[1],canvas.shape[0]))
+    # fourcc = cv2.VideoWriter_fourcc(*'XVID')    # Creating video writer to generate a video.
+    # out = cv2.VideoWriter('A-Star-amalapak-okritvik_testCase0.avi',fourcc,500,(canvas.shape[1],canvas.shape[0]))
     
     print("Total Number of Nodes Explored = ",len(closed_list)) 
     
@@ -552,14 +554,14 @@ def back_track(initial_state, final_state, closed_list, canvas, trajectory_dict)
         p_node = closed_list[tuple(key)]
         cv2.circle(canvas,(int(key[0]),int(key[1])),2,(0,0,255),-1)
         cv2.circle(canvas,(int(p_node[0]),int(p_node[1])),2,(0,0,255),-1)
-        # canvas = cv2.arrowedLine(canvas, (int(p_node[0]),int(p_node[1])), (int(key[0]),int(key[1])), (0,255,0), 1, tipLength = 0.2)
+        
         if(tuple(initial_state)!=tuple(key)):
             traj = trajectory_dict[tuple(key)]
             for i in range(0,len(traj)-1):
                 cv2.line(canvas,(int(round(traj[i][0])),int(round(traj[i][1]))), (int(round(traj[i+1][0])),int(round(traj[i+1][1]))), (0,255,0),1)            
         cv2.imshow("A* Exploration and Optimal Path Visualization",canvas)
         cv2.waitKey(1)
-        out.write(canvas)
+        # out.write(canvas)
 
     parent_node = closed_list[tuple(final_state)]
     path_stack.append(final_state)    # Appending the final state because of the loop starting condition
@@ -582,14 +584,14 @@ def back_track(initial_state, final_state, closed_list, canvas, trajectory_dict)
         # cv2.line(canvas,(int(start_node[0]),int(start_node[1])),(int(path_node[0]),int(path_node[1])),(255,0,196),5)
         print(path_node)
         start_node = path_node.copy()
-        out.write(canvas)
+        # out.write(canvas)
     
-    out.release()
+    # out.release()
 
 if __name__ == '__main__':
     
     canvas = np.ones((250,400,3), dtype="uint8")    # Creating a blank canvas/map
-    clearance, robot_radius, vel_l, vel_r = take_robot_inputs()
+    clearance, robot_radius, rpm1, rpm2 = take_robot_inputs()
     canvas = draw_obstacles(canvas,offset = (clearance + robot_radius))
     initial_state, final_state = take_map_inputs(canvas) #Take the start and goal node from the user
     
@@ -603,7 +605,7 @@ if __name__ == '__main__':
     final_state[1] = canvas.shape[0]-1 - final_state[1]
     # print(initial_state, final_state)
 
-    # Converting the angles with respect to the image coordinates
+    # Converting the angles with respect to the image coordinate
     if initial_state[2] != 0:
         initial_state[2] = 360 - initial_state[2]
 
@@ -614,9 +616,12 @@ if __name__ == '__main__':
 
     cv2.circle(canvas,(int(initial_state[0]),int(initial_state[1])),2,(0,0,255),-1)
     cv2.circle(canvas,(int(final_state[0]),int(final_state[1])),2,(0,0,255),-1)
+    
+    # Robot parameters
     R = 38
     L = 3.54
-    astar(initial_state,final_state,canvas, vel_l, vel_r, R, L)    # Compute the optimal path using A* Algorithm
+
+    astar(initial_state,final_state,canvas, rpm1, rpm2, R, L)    # Compute the optimal path using A* Algorithm
     
     end_time = time.time()    # Time taken for the algorithm to find the optimal path
     print("\nCode Execution Time (sec): ", end_time-start_time)    # Computes & prints the total execution time

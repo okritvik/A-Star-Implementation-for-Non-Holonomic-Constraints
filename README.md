@@ -14,6 +14,8 @@ Implementation of the A-star algorithm for path planning of the Turtlebot3 robot
 * heapq: Heap Queue to store opened_list nodes 
 
 ## Test Case 1: 
+
+Video Link: https://youtu.be/kElPb8yBWeM </br></br>
   [co-ordinates with respect to bottom left corner origin of the window] 
 
 	Start-Node: (15, 15)
@@ -33,6 +35,7 @@ Implementation of the A-star algorithm for path planning of the Turtlebot3 robot
 
 
 ## Test Case 2: 
+Video Link: https://youtu.be/AiUbnV2LWNk </br></br>
   [co-ordinates with respect to bottom left corner origin of the window] 
 
   Start-Node: (300, 30) 
@@ -49,6 +52,7 @@ Implementation of the A-star algorithm for path planning of the Turtlebot3 robot
 <p align="center">
   <img src="https://user-images.githubusercontent.com/40534801/165003074-a181345c-e553-4b4d-acde-52d0182c176f.png" width="800" height="500">
 </p>
+
 
 ## Running the Code:
 
